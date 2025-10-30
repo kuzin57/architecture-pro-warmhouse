@@ -1,0 +1,1828 @@
+openapi: 3.0.3
+info:
+    title: WarmHouse User API
+    description: API для управления пользователями, домами и устройствами в системе умного дома
+    version: 1.0.0
+    contact:
+        name: WarmHouse Team
+        email: support@warmhouse.com
+servers:
+    - url: http://localhost:8080/api/v1
+      description: Локальный сервер разработки
+    - url: https://api.warmhouse.com/v1
+      description: Продакшн сервер
+tags:
+    - name: Auth
+      description: Аутентификация и регистрация пользователей
+    - name: Users
+      description: Управление пользователями
+    - name: Houses
+      description: Управление домами
+    - name: Devices
+      description: Управление устройствами
+paths:
+    # Auth endpoints
+    /register:
+        post:
+            tags:
+                - Auth
+            summary: Регистрация нового пользователя
+            description: Создает нового пользователя в системе
+            operationId: registerUser
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UserRegistrationRequest'
+                        example:
+                            name: "Иван Петров"
+                            email: "ivan@example.com"
+                            phone: "+7 (999) 123-45-67"
+                            password: "securePassword123"
+            responses:
+                '201':
+                    description: Пользователь успешно зарегистрирован
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserRegistrationResponse'
+                            example:
+                                user_id: "550e8400-e29b-41d4-a716-446655440000"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "email"
+                                              message: "email должен быть валидным адресом"
+                                            - field: "password"
+                                              message: "пароль должен содержать минимум 8 символов"
+                                email_exists:
+                                    summary: Email уже существует
+                                    value:
+                                        error: "email_exists"
+                                        message: "Пользователь с таким email уже зарегистрирован"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /login:
+        post:
+            tags:
+                - Auth
+            summary: Вход в систему
+            description: Аутентификация пользователя
+            operationId: loginUser
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UserLoginRequest'
+                        example:
+                            email: "ivan@example.com"
+                            password: "securePassword123"
+            responses:
+                '200':
+                    description: Успешная аутентификация
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UserLoginResponse'
+                            example:
+                                user:
+                                    id: "550e8400-e29b-41d4-a716-446655440000"
+                                    name: "Иван Петров"
+                                    email: "ivan@example.com"
+                                    phone: "+7 (999) 123-45-67"
+                                    created_at: "2024-01-15T10:30:00Z"
+                                    updated_at: "2024-01-15T10:30:00Z"
+                                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                expires_at: "2024-01-16T10:30:00Z"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "validation_error"
+                                message: "Некорректные данные"
+                                details:
+                                    - field: "email"
+                                      message: "email должен быть валидным адресом"
+                '401':
+                    description: Неверные учетные данные
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "invalid_credentials"
+                                message: "Неверный email или пароль"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /internal/defaultuser:
+        get:
+            tags:
+                - Auth
+            summary: Получить информацию о пользователе по умолчанию
+            description: Возвращает полную информацию о пользователе по умолчанию для тестирования
+            operationId: getDefaultUser
+            parameters:
+                - $ref: '#/components/parameters/ApiKeyHeader'
+            responses:
+                '200':
+                    description: Полная информация о пользователе по умолчанию
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DefaultUserResponse'
+                            example:
+                                user:
+                                    id: "550e8400-e29b-41d4-a716-446655440000"
+                                    name: "Иван Петров"
+                                    email: "ivan@example.com"
+                                    phone: "+7 (999) 123-45-67"
+                                    created_at: "2024-01-15T10:30:00Z"
+                                    updated_at: "2024-01-15T10:30:00Z"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Доступ запрещен"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    # Users endpoints
+    /users/info:
+        get:
+            tags:
+                - Users
+            summary: Получить информацию о пользователе
+            description: Возвращает информацию о текущем пользователе
+            operationId: getUserInfo
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            responses:
+                '200':
+                    description: Информация о пользователе
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/User'
+                            example:
+                                id: "550e8400-e29b-41d4-a716-446655440000"
+                                name: "Иван Петров"
+                                email: "ivan@example.com"
+                                phone: "+7 (999) 123-45-67"
+                                created_at: "2024-01-15T10:30:00Z"
+                                updated_at: "2024-01-15T10:30:00Z"
+                '400':
+                    description: Некорректный заголовок
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "invalid_header"
+                                message: "Заголовок X-User-Id должен содержать валидный UUID"
+                '404':
+                    description: Пользователь не найден
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "user_not_found"
+                                message: "Пользователь с указанным ID не найден"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /users/update:
+        put:
+            tags:
+                - Users
+            summary: Обновить информацию о пользователе
+            description: Позволяет пользователю обновить свои данные
+            operationId: updateUser
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UserUpdateRequest'
+                        examples:
+                            update_name:
+                                summary: Обновить имя
+                                value:
+                                    name: "Иван Петрович"
+                            update_phone:
+                                summary: Обновить телефон
+                                value:
+                                    phone: "+7 (999) 987-65-43"
+                            update_both:
+                                summary: Обновить имя и телефон
+                                value:
+                                    name: "Иван Петрович"
+                                    phone: "+7 (999) 987-65-43"
+            responses:
+                '200':
+                    description: Информация о пользователе успешно обновлена
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/User'
+                            example:
+                                id: "550e8400-e29b-41d4-a716-446655440000"
+                                name: "Иван Петрович"
+                                email: "ivan@example.com"
+                                phone: "+7 (999) 987-65-43"
+                                created_at: "2024-01-15T10:30:00Z"
+                                updated_at: "2024-01-15T11:45:00Z"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "name"
+                                              message: "имя не может быть пустым"
+                                            - field: "phone"
+                                              message: "телефон должен быть валидным"
+                                empty_request:
+                                    summary: Пустой запрос
+                                    value:
+                                        error: "validation_error"
+                                        message: "Необходимо указать хотя бы одно поле для обновления"
+                '404':
+                    description: Пользователь не найден
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "user_not_found"
+                                message: "Пользователь с указанным ID не найден"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    # Houses endpoints
+    /houses:
+        get:
+            tags:
+                - Houses
+            summary: Получить список домов пользователя
+            description: Возвращает список всех домов, принадлежащих пользователю
+            operationId: getUserHouses
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            responses:
+                '200':
+                    description: Список домов пользователя
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/HousesListResponse'
+                            example:
+                                houses:
+                                    - id: "550e8400-e29b-41d4-a716-446655440010"
+                                      name: "Мой дом"
+                                      address: "ул. Примерная, д. 1"
+                                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                                      created_at: "2024-01-15T10:30:00Z"
+                                      updated_at: "2024-01-15T10:30:00Z"
+                                    - id: "550e8400-e29b-41d4-a716-446655440011"
+                                      name: "Дача"
+                                      address: "пос. Дачный, д. 5"
+                                      user_id: "550e8400-e29b-41d4-a716-446655440000"
+                                      created_at: "2024-01-15T11:00:00Z"
+                                      updated_at: "2024-01-15T11:00:00Z"
+                '400':
+                    description: Некорректный заголовок
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "invalid_header"
+                                message: "Заголовок X-User-Id должен содержать валидный UUID"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+        post:
+            tags:
+                - Houses
+            summary: Создать новый дом
+            description: Создает новый дом для пользователя
+            operationId: createHouse
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateHouseRequest'
+                        example:
+                            name: "Мой новый дом"
+                            address: "ул. Новая, д. 10"
+            responses:
+                '201':
+                    description: Дом успешно создан
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/House'
+                            example:
+                                id: "550e8400-e29b-41d4-a716-446655440012"
+                                name: "Мой новый дом"
+                                address: "ул. Новая, д. 10"
+                                user_id: "550e8400-e29b-41d4-a716-446655440000"
+                                created_at: "2024-01-15T12:00:00Z"
+                                updated_at: "2024-01-15T12:00:00Z"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "name"
+                                              message: "название дома не может быть пустым"
+                                            - field: "address"
+                                              message: "адрес не может быть пустым"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /houses/info:
+        post:
+            tags:
+                - Houses
+            summary: Получить информацию о доме
+            description: Возвращает детальную информацию о конкретном доме
+            operationId: getHouseInfo
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/HouseInfoRequest'
+                        example:
+                            house_id: "550e8400-e29b-41d4-a716-446655440010"
+            responses:
+                '200':
+                    description: Информация о доме
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/HouseInfoResponse'
+                            example:
+                                house:
+                                    id: "550e8400-e29b-41d4-a716-446655440010"
+                                    name: "Мой дом"
+                                    address: "ул. Примерная, д. 1"
+                                    user_id: "550e8400-e29b-41d4-a716-446655440000"
+                                    created_at: "2024-01-15T10:30:00Z"
+                                    updated_at: "2024-01-15T10:30:00Z"
+                                device_count: 5
+                                last_activity: "2024-01-15T15:30:00Z"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "house_id"
+                                              message: "house_id должен быть валидным UUID"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Дом не принадлежит указанному пользователю"
+                '404':
+                    description: Дом не найден
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "house_not_found"
+                                message: "Дом с указанным ID не найден"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /houses/update:
+        put:
+            tags:
+                - Houses
+            summary: Обновить информацию о доме
+            description: Обновляет информацию о доме (название и/или адрес)
+            operationId: updateHouse
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateHouseRequest'
+                        examples:
+                            update_name:
+                                summary: Обновить название
+                                value:
+                                    house_id: "550e8400-e29b-41d4-a716-446655440010"
+                                    name: "Мой обновленный дом"
+                            update_address:
+                                summary: Обновить адрес
+                                value:
+                                    house_id: "550e8400-e29b-41d4-a716-446655440010"
+                                    address: "ул. Новая адресная, д. 20"
+                            update_both:
+                                summary: Обновить название и адрес
+                                value:
+                                    house_id: "550e8400-e29b-41d4-a716-446655440010"
+                                    name: "Мой обновленный дом"
+                                    address: "ул. Новая адресная, д. 20"
+            responses:
+                '200':
+                    description: Информация о доме успешно обновлена
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/House'
+                            example:
+                                id: "550e8400-e29b-41d4-a716-446655440010"
+                                name: "Мой обновленный дом"
+                                address: "ул. Новая адресная, д. 20"
+                                user_id: "550e8400-e29b-41d4-a716-446655440000"
+                                created_at: "2024-01-15T10:30:00Z"
+                                updated_at: "2024-01-15T16:00:00Z"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "house_id"
+                                              message: "house_id должен быть валидным UUID"
+                                            - field: "name"
+                                              message: "название дома не может быть пустым"
+                                empty_request:
+                                    summary: Пустой запрос
+                                    value:
+                                        error: "validation_error"
+                                        message: "Необходимо указать хотя бы одно поле для обновления"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Дом не принадлежит указанному пользователю"
+                '404':
+                    description: Дом не найден
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "house_not_found"
+                                message: "Дом с указанным ID не найден"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /houses/delete:
+        delete:
+            tags:
+                - Houses
+            summary: Удалить дом
+            description: Удаляет дом и все связанные с ним устройства
+            operationId: deleteHouse
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DeleteHouseRequest'
+                        example:
+                            house_id: "550e8400-e29b-41d4-a716-446655440010"
+            responses:
+                '204':
+                    description: Дом успешно удален
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "house_id"
+                                              message: "house_id должен быть валидным UUID"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Дом не принадлежит указанному пользователю"
+                '404':
+                    description: Дом не найден
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "house_not_found"
+                                message: "Дом с указанным ID не найден"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    # Devices endpoints
+    /devices:
+        get:
+            tags:
+                - Devices
+            summary: Получить список устройств пользователя
+            description: Возвращает список всех устройств пользователя с краткой информацией
+            operationId: getUserDevices
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            responses:
+                '200':
+                    description: Список устройств пользователя
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DevicesListResponse'
+                            example:
+                                devices:
+                                    - id: "550e8400-e29b-41d4-a716-446655440020"
+                                      name: "Термометр гостиная"
+                                      house_id: "550e8400-e29b-41d4-a716-446655440010"
+                                      unit: "°C"
+                                      value: "22.5"
+                                      created_at: "2024-01-15T10:30:00Z"
+                                      updated_at: "2024-01-15T15:30:00Z"
+                                    - id: "550e8400-e29b-41d4-a716-446655440021"
+                                      name: "Датчик влажности"
+                                      house_id: "550e8400-e29b-41d4-a716-446655440010"
+                                      unit: "%"
+                                      value: "45.2"
+                                      created_at: "2024-01-15T11:00:00Z"
+                                      updated_at: "2024-01-15T14:20:00Z"
+                '400':
+                    description: Некорректный заголовок
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "invalid_header"
+                                message: "Заголовок X-User-Id должен содержать валидный UUID"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+        post:
+            tags:
+                - Devices
+            summary: Создать новое устройство
+            description: Создает новое устройство в указанном доме
+            operationId: createDevice
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateDeviceRequest'
+                        example:
+                            name: "Новый датчик температуры"
+                            house_id: "550e8400-e29b-41d4-a716-446655440010"
+                            unit: "°C"
+                            value: "20.0"
+                            type: "temperature"
+            responses:
+                '201':
+                    description: Устройство успешно создано
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateDeviceResponse'
+                            example:
+                                id: "550e8400-e29b-41d4-a716-446655440022"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "name"
+                                              message: "название устройства не может быть пустым"
+                                            - field: "house_id"
+                                              message: "house_id должен быть валидным UUID"
+                                            - field: "unit"
+                                              message: "единица измерения не может быть пустой"
+                                            - field: "value"
+                                              message: "значение не может быть пустым"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Дом не принадлежит указанному пользователю"
+                '404':
+                    description: Дом не найден
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "house_not_found"
+                                message: "Дом с указанным ID не найден"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /devices/info:
+        post:
+            tags:
+                - Devices
+            summary: Получить информацию об устройстве
+            description: Возвращает детальную информацию о конкретном устройстве
+            operationId: getDeviceInfo
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DeviceInfoRequest'
+                        example:
+                            device_id: "550e8400-e29b-41d4-a716-446655440020"
+            responses:
+                '200':
+                    description: Информация об устройстве
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeviceInfoResponse'
+                            example:
+                                device:
+                                    id: "550e8400-e29b-41d4-a716-446655440020"
+                                    name: "Термометр гостиная"
+                                    house_id: "550e8400-e29b-41d4-a716-446655440010"
+                                    unit: "°C"
+                                    value: "22.5"
+                                    created_at: "2024-01-15T10:30:00Z"
+                                    updated_at: "2024-01-15T15:30:00Z"
+                                last_telemetry:
+                                    id: "550e8400-e29b-41d4-a716-446655440030"
+                                    device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                    value: "22.5"
+                                    timestamp: "2024-01-15T15:30:00Z"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "device_id"
+                                              message: "device_id должен быть валидным UUID"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Устройство не принадлежит указанному пользователю"
+                '404':
+                    description: Устройство не найдено
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "device_not_found"
+                                message: "Устройство с указанным ID не найдено"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /devices/{device_id}/telemetry:
+        get:
+            tags:
+                - Devices
+            summary: Получить данные телеметрии устройства
+            description: Возвращает список данных телеметрии для указанного устройства
+            operationId: getDeviceTelemetry
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+                - name: device_id
+                  in: path
+                  required: true
+                  description: UUID устройства
+                  schema:
+                    type: string
+                    format: uuid
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+                - name: limit
+                  in: query
+                  required: false
+                  description: Максимальное количество записей (по умолчанию 100)
+                  schema:
+                    type: integer
+                    minimum: 1
+                    maximum: 1000
+                    default: 100
+                    example: 50
+                - name: offset
+                  in: query
+                  required: false
+                  description: Смещение для пагинации (по умолчанию 0)
+                  schema:
+                    type: integer
+                    minimum: 0
+                    default: 0
+                    example: 0
+                - name: from_date
+                  in: query
+                  required: false
+                  description: Начальная дата для фильтрации (ISO 8601)
+                  schema:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T00:00:00Z"
+                - name: to_date
+                  in: query
+                  required: false
+                  description: Конечная дата для фильтрации (ISO 8601)
+                  schema:
+                    type: string
+                    format: date-time
+                    example: "2024-01-15T23:59:59Z"
+            responses:
+                '200':
+                    description: Данные телеметрии устройства
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/TelemetryListResponse'
+                            example:
+                                telemetry:
+                                    - device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                      timestamp: "2024-01-15T15:30:00Z"
+                                      data: "{\"temperature\": 22.5, \"humidity\": 45.2}"
+                                    - device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                      timestamp: "2024-01-15T15:25:00Z"
+                                      data: "{\"temperature\": 22.3, \"humidity\": 45.5}"
+                                    - device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                      timestamp: "2024-01-15T15:20:00Z"
+                                      data: "{\"temperature\": 22.1, \"humidity\": 45.8}"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                invalid_device_id:
+                                    summary: Некорректный device_id
+                                    value:
+                                        error: "validation_error"
+                                        message: "device_id должен быть валидным UUID"
+                                invalid_date_range:
+                                    summary: Некорректный диапазон дат
+                                    value:
+                                        error: "validation_error"
+                                        message: "from_date не может быть больше to_date"
+                                invalid_limit:
+                                    summary: Некорректный лимит
+                                    value:
+                                        error: "validation_error"
+                                        message: "limit должен быть от 1 до 1000"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Устройство не принадлежит указанному пользователю"
+                '404':
+                    description: Устройство не найдено
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "device_not_found"
+                                message: "Устройство с указанным ID не найдено"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /devices/update:
+        put:
+            tags:
+                - Devices
+            summary: Обновить информацию об устройстве
+            description: Обновляет информацию об устройстве (название, значение, единица измерения)
+            operationId: updateDevice
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateDeviceRequest'
+                        examples:
+                            update_name:
+                                summary: Обновить название
+                                value:
+                                    device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                    name: "Обновленный термометр"
+                            update_value:
+                                summary: Обновить значение
+                                value:
+                                    device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                    value: "24.5"
+                            update_unit:
+                                summary: Обновить единицу измерения
+                                value:
+                                    device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                    unit: "°F"
+                            update_all:
+                                summary: Обновить все поля
+                                value:
+                                    device_id: "550e8400-e29b-41d4-a716-446655440020"
+                                    name: "Обновленный термометр"
+                                    value: "24.5"
+                                    unit: "°F"
+            responses:
+                '200':
+                    description: Информация об устройстве успешно обновлена
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateDeviceResponse'
+                            example:
+                                device_id: "550e8400-e29b-41d4-a716-446655440020"
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "device_id"
+                                              message: "device_id должен быть валидным UUID"
+                                            - field: "name"
+                                              message: "название устройства не может быть пустым"
+                                            - field: "value"
+                                              message: "значение не может быть пустым"
+                                            - field: "unit"
+                                              message: "единица измерения не может быть пустой"
+                                empty_request:
+                                    summary: Пустой запрос
+                                    value:
+                                        error: "validation_error"
+                                        message: "Необходимо указать хотя бы одно поле для обновления"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Устройство не принадлежит указанному пользователю"
+                '404':
+                    description: Устройство не найдено
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "device_not_found"
+                                message: "Устройство с указанным ID не найдено"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+    /devices/delete:
+        delete:
+            tags:
+                - Devices
+            summary: Удалить устройство
+            description: Удаляет устройство и все связанные с ним данные телеметрии
+            operationId: deleteDevice
+            parameters:
+                - $ref: '#/components/parameters/XUserIdHeader'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DeleteDeviceRequest'
+                        example:
+                            device_id: "550e8400-e29b-41d4-a716-446655440020"
+            responses:
+                '204':
+                    description: Устройство успешно удалено
+                '400':
+                    description: Некорректные данные запроса
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            examples:
+                                invalid_header:
+                                    summary: Некорректный заголовок
+                                    value:
+                                        error: "invalid_header"
+                                        message: "Заголовок X-User-Id должен содержать валидный UUID"
+                                validation_error:
+                                    summary: Ошибка валидации
+                                    value:
+                                        error: "validation_error"
+                                        message: "Некорректные данные"
+                                        details:
+                                            - field: "device_id"
+                                              message: "device_id должен быть валидным UUID"
+                '403':
+                    description: Доступ запрещен
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "access_denied"
+                                message: "Устройство не принадлежит указанному пользователю"
+                '404':
+                    description: Устройство не найдено
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "device_not_found"
+                                message: "Устройство с указанным ID не найдено"
+                '500':
+                    description: Внутренняя ошибка сервера
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                            example:
+                                error: "internal_error"
+                                message: "Внутренняя ошибка сервера"
+
+components:
+    parameters:
+        XUserIdHeader:
+            name: X-User-Id
+            in: header
+            required: true
+            description: UUID пользователя для идентификации
+            schema:
+                type: string
+                format: uuid
+                example: "550e8400-e29b-41d4-a716-446655440000"
+
+        ApiKeyHeader:
+            name: X-Api-Key
+            in: header
+            required: true
+            description: API ключ для идентификации
+            schema:
+                type: string
+                example: "salalalal"
+                pattern: "^[a-zA-Z0-9]+$"
+
+    schemas:
+        # Auth schemas
+        UserRegistrationRequest:
+            type: object
+            required:
+                - name
+                - email
+                - password
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Имя пользователя
+                    example: "Иван Петров"
+                email:
+                    type: string
+                    description: Email адрес пользователя
+                    example: "ivan@example.com"
+                phone:
+                    type: string
+                    pattern: "^\\+?[1-9]\\d{1,14}$"
+                    description: Номер телефона пользователя (опционально)
+                    example: "+7 (999) 123-45-67"
+                password:
+                    type: string
+                    minLength: 8
+                    maxLength: 128
+                    description: Пароль пользователя
+                    example: "securePassword123"
+            additionalProperties: false
+
+        UserRegistrationResponse:
+            type: object
+            required:
+                - user_id
+            properties:
+                user_id:
+                    type: string
+                    format: uuid
+                    description: Уникальный идентификатор пользователя
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+
+        DefaultUserResponse:
+            type: object
+            required:
+                - user
+                - default_house_id
+            properties:
+                user:
+                    $ref: '#/components/schemas/User'
+                default_house_id:
+                    type: string
+                    format: uuid
+                    description: UUID самого давнего дома пользователя
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+            additionalProperties: false
+
+        UserLoginRequest:
+            type: object
+            required:
+                - email
+                - password
+            properties:
+                email:
+                    type: string
+                    format: email
+                    description: Email адрес пользователя
+                    example: "ivan@example.com"
+                password:
+                    type: string
+                    description: Пароль пользователя
+                    example: "securePassword123"
+            additionalProperties: false
+
+        UserLoginResponse:
+            type: object
+            required:
+                - user
+            properties:
+                user:
+                    $ref: '#/components/schemas/User'
+            additionalProperties: false
+
+        # User schemas
+        User:
+            type: object
+            required:
+                - id
+                - name
+                - email
+                - created_at
+                - updated_at
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                    description: Уникальный идентификатор пользователя
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                name:
+                    type: string
+                    description: Имя пользователя
+                    example: "Иван Петров"
+                email:
+                    type: string
+                    description: Email адрес пользователя
+                    example: "ivan@example.com"
+                phone:
+                    type: string
+                    description: Номер телефона пользователя
+                    example: "+7 (999) 123-45-67"
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Дата и время создания пользователя
+                    example: "2024-01-15T10:30:00Z"
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: Дата и время последнего обновления пользователя
+                    example: "2024-01-15T10:30:00Z"
+            additionalProperties: false
+
+        UserUpdateRequest:
+            type: object
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Новое имя пользователя (опционально)
+                    example: "Иван Петрович"
+                phone:
+                    type: string
+                    pattern: "^\\+?[1-9]\\d{1,14}$"
+                    description: Новый номер телефона (опционально)
+                    example: "+7 (999) 987-65-43"
+            additionalProperties: false
+
+        # House schemas
+        House:
+            type: object
+            required:
+                - id
+                - name
+                - address
+                - user_id
+                - created_at
+                - updated_at
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                    description: Уникальный идентификатор дома
+                    example: "550e8400-e29b-41d4-a716-446655440010"
+                name:
+                    type: string
+                    description: Название дома
+                    example: "Мой дом"
+                address:
+                    type: string
+                    description: Адрес дома
+                    example: "ул. Примерная, д. 1"
+                user_id:
+                    type: string
+                    format: uuid
+                    description: ID владельца дома
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Дата и время создания дома
+                    example: "2024-01-15T10:30:00Z"
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: Дата и время последнего обновления дома
+                    example: "2024-01-15T10:30:00Z"
+            additionalProperties: false
+
+        HouseInfoRequest:
+            type: object
+            required:
+                - house_id
+            properties:
+                house_id:
+                    type: string
+                    format: uuid
+                    description: UUID дома
+                    example: "550e8400-e29b-41d4-a716-446655440010"
+            additionalProperties: false
+
+        HouseInfoResponse:
+            type: object
+            required:
+                - house
+                - device_count
+            properties:
+                house:
+                    $ref: '#/components/schemas/House'
+                device_count:
+                    type: integer
+                    minimum: 0
+                    description: Количество устройств в доме
+                    example: 5
+                last_activity:
+                    type: string
+                    format: date-time
+                    description: Время последней активности в доме
+                    example: "2024-01-15T15:30:00Z"
+            additionalProperties: false
+
+        HousesListResponse:
+            type: object
+            required:
+                - houses
+            properties:
+                houses:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/House'
+                    description: Список домов пользователя
+            additionalProperties: false
+
+        CreateHouseRequest:
+            type: object
+            required:
+                - name
+                - address
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Название дома
+                    example: "Мой новый дом"
+                address:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                    description: Адрес дома
+                    example: "ул. Новая, д. 10"
+            additionalProperties: false
+
+        UpdateHouseRequest:
+            type: object
+            required:
+                - house_id
+            properties:
+                house_id:
+                    type: string
+                    format: uuid
+                    description: UUID дома
+                    example: "550e8400-e29b-41d4-a716-446655440010"
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Новое название дома (опционально)
+                    example: "Мой обновленный дом"
+                address:
+                    type: string
+                    minLength: 1
+                    maxLength: 500
+                    description: Новый адрес дома (опционально)
+                    example: "ул. Новая адресная, д. 20"
+            additionalProperties: false
+
+        DeleteHouseRequest:
+            type: object
+            required:
+                - house_id
+            properties:
+                house_id:
+                    type: string
+                    format: uuid
+                    description: UUID дома для удаления
+                    example: "550e8400-e29b-41d4-a716-446655440010"
+            additionalProperties: false
+
+        # Device schemas
+        CreateDeviceResponse:
+            type: object
+            required:
+                - id
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                    description: Уникальный идентификатор устройства
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+
+        Device:
+            type: object
+            required:
+                - id
+                - name
+                - house_id
+                - location
+                - host
+                - unit
+                - value
+                - created_at
+                - updated_at
+                - status
+            properties:
+                id:
+                    type: string
+                    format: uuid
+                    description: Уникальный идентификатор устройства
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+                name:
+                    type: string
+                    description: Название устройства
+                    example: "Термометр гостиная"
+                house_id:
+                    type: string
+                    format: uuid
+                    description: ID дома, в котором находится устройство
+                    example: "550e8400-e29b-41d4-a716-446655440010"
+                location:
+                    type: string
+                    description: Местоположение устройства в доме
+                    example: "kitchen"
+                host:
+                    type: string
+                    description: Хост устройства для подключения
+                    example: "192.168.1.100"
+                unit:
+                    type: string
+                    description: Единица измерения
+                    example: "°C"
+                value:
+                    type: string
+                    description: Текущее значение устройства
+                    example: "22.5"
+                created_at:
+                    type: string
+                    format: date-time
+                    description: Дата и время создания устройства
+                    example: "2024-01-15T10:30:00Z"
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: Дата и время последнего обновления устройства
+                    example: "2024-01-15T15:30:00Z"
+                status:
+                    type: string
+                    description: Статус устройства
+                    example: "active"
+                type:
+                    type: string
+                    enum: [temperature, gates, video]
+                    description: Тип устройства
+                    example: "temperature"
+            additionalProperties: false
+
+        DeviceInfoRequest:
+            type: object
+            required:
+                - device_id
+            properties:
+                device_id:
+                    type: string
+                    format: uuid
+                    description: UUID устройства
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+            additionalProperties: false
+
+        DeviceInfoResponse:
+            type: object
+            required:
+                - device
+            properties:
+                device:
+                    $ref: '#/components/schemas/Device'
+                last_telemetry:
+                    $ref: '#/components/schemas/Telemetry'
+                    description: Последние данные телеметрии устройства
+            additionalProperties: false
+
+        DevicesListResponse:
+            type: object
+            required:
+                - devices
+            properties:
+                devices:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Device'
+                    description: Список устройств пользователя
+            additionalProperties: false
+
+        CreateDeviceRequest:
+            type: object
+            required:
+                - name
+                - house_id
+                - location
+                - host
+                - unit
+                - value
+                - type
+            properties:
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Название устройства
+                    example: "Новый датчик температуры"
+                house_id:
+                    type: string
+                    format: uuid
+                    description: ID дома, в котором будет создано устройство
+                    example: "550e8400-e29b-41d4-a716-446655440010"
+                location:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    description: Местоположение устройства в доме
+                    example: "kitchen"
+                sensor_id:
+                    type: integer
+                    description: ID сенсора устройства
+                    example: 1
+                host:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Хост устройства для подключения
+                    example: "192.168.1.100"
+                type:
+                    type: string
+                    enum: [temperature, gates, video]
+                    description: Тип устройства
+                    example: "temperature"
+                unit:
+                    type: string
+                    minLength: 1
+                    maxLength: 20
+                    description: Единица измерения
+                    example: "°C"
+                value:
+                    type: string
+                    minLength: 1
+                    maxLength: 50
+                    description: Начальное значение устройства
+                    example: "20.0"
+                schedule:
+                    type: string
+                    description: Расписание устройства
+                    example: "0 0 * * *"
+            additionalProperties: false
+
+
+        UpdateDeviceRequest:
+            type: object
+            required:
+                - device_id
+            properties:
+                device_id:
+                    type: string
+                    format: uuid
+                    description: UUID устройства
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+                name:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Новое название устройства (опционально)
+                    example: "Обновленный термометр"
+                value:
+                    type: string
+                    minLength: 1
+                    maxLength: 50
+                    description: Новое значение устройства (опционально)
+                    example: "24.5"
+                unit:
+                    type: string
+                    minLength: 1
+                    maxLength: 20
+                    description: Новая единица измерения (опционально)
+                    example: "°F"
+                sensor_id:
+                    type: integer
+                    description: Новый ID сенсора устройства
+                    example: 1
+                location:
+                    type: string
+                    minLength: 1
+                    maxLength: 100
+                    description: Новое местоположение устройства
+                    example: "kitchen"
+                host:
+                    type: string
+                    minLength: 1
+                    maxLength: 255
+                    description: Новый хост устройства
+                    example: "192.168.1.100"
+                schedule:
+                    type: string
+                    description: Новое расписание устройства
+                    example: "0 0 * * *"
+            additionalProperties: false
+
+        UpdateDeviceResponse:
+            type: object
+            required:
+                - device_id
+            properties:
+                device_id:
+                    type: string
+                    format: uuid
+                    description: UUID устройства
+
+        DeleteDeviceRequest:
+            type: object
+            required:
+                - device_id
+            properties:
+                device_id:
+                    type: string
+                    format: uuid
+                    description: UUID устройства для удаления
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+            additionalProperties: false
+
+        # Telemetry schema
+        Telemetry:
+            type: object
+            required:
+                - device_id
+                - timestamp
+                - data
+            properties:
+                device_id:
+                    type: string
+                    format: uuid
+                    description: ID устройства
+                    example: "550e8400-e29b-41d4-a716-446655440020"
+                timestamp:
+                    type: string
+                    format: date-time
+                    description: Время получения данных
+                    example: "2024-01-15T15:30:00Z"
+                data:
+                    type: string
+                    description: Данные телеметрии в формате JSON
+                    example: "{\"temperature\": 22.5, \"humidity\": 45.2}"
+            additionalProperties: false
+
+        TelemetryListResponse:
+            type: object
+            required:
+                - telemetry
+            properties:
+                telemetry:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Telemetry'
+                    description: Список данных телеметрии устройства
+            additionalProperties: false
+
+        # Common schemas
+        ErrorResponse:
+            type: object
+            required:
+                - error
+                - message
+            properties:
+                error:
+                    type: string
+                    description: Код ошибки
+                    example: "validation_error"
+                message:
+                    type: string
+                    description: Описание ошибки
+                    example: "Некорректные данные"
+                details:
+                    type: array
+                    items:
+                        type: object
+                        properties:
+                            field:
+                                type: string
+                                description: Поле с ошибкой
+                            message:
+                                type: string
+                                description: Сообщение об ошибке
+                    description: Детали ошибок валидации
+            additionalProperties: false

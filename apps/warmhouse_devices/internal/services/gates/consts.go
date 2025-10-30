@@ -1,0 +1,5 @@
+package gates
+
+const (
+	checkGatesStatusDefaultSchedule = "* * * * *"
+)

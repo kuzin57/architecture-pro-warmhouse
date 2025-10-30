@@ -3,34 +3,178 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: smarthome-postgres
-  ## тут нужно добавить настройки
+    container_name: warmhouse-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      USER_API_PASSWORD: ${USER_API_PASSWORD}
+      DEVICES_PASSWORD: ${DEVICES_PASSWORD}
+    volumes:
+      - postgres_data_new:/var/lib/postgresql/data
+      - ./smart_home/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    networks:
+      - warmhouse-network
+
+  migrations:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    container_name: warmhouse-migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_DB: warmhouse
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    networks:
+      - warmhouse-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: warmhouse-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-admin}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST:-/}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_logs:/var/log/rabbitmq
+    ports:
+      - "5672:5672"   # AMQP порт
+      - "15672:15672" # Management UI порт
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - warmhouse-network
 
   temperature-api:
-  ## тут нужно добавить приложение
+    build:
+      context: ./temperature_api
+      dockerfile: Dockerfile
+    container_name: temperature-api
+    ports:
+      - "8081:8081"
+    networks:
+      - warmhouse-network
+
+  gates-api:
+    build:
+      context: ./gates_api
+      dockerfile: Dockerfile
+    container_name: gates-api
+    ports:
+      - "8083:8083"
+    networks:
+      - warmhouse-network
 
   app:
     build:
-      context: ./smart_home
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/smart_home/Dockerfile
     container_name: smarthome-app
     depends_on:
       postgres:
         condition: service_healthy
       temperature-api:
         condition: service_started
+      migrations:
+        condition: service_completed_successfully
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/smarthome
+      - DATABASE_URL=${SMART_HOME_PG_DSN}
       - TEMPERATURE_API_URL=http://temperature-api:8081
+      - RABBITMQ_URL=${RABBITMQ_URL}
     ports:
       - "8080:8080"
     restart: unless-stopped
     networks:
-      - smarthome-network
+      - warmhouse-network
+
+  warmhouse_user_api:
+    build:
+      context: ..
+      dockerfile: apps/warmhouse_user_api/Dockerfile
+    container_name: warmhouse_user_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - USER_API_PASSWORD=${USER_API_PASSWORD}
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "8082:8080"
+    networks:
+      - warmhouse-network
+
+  warmhouse_authproxy:
+    build:
+      context: .
+      dockerfile: warmhouse_authproxy/Dockerfile
+    container_name: warmhouse_authproxy
+    depends_on:
+      warmhouse_user_api:
+        condition: service_started
+    ports:
+      - "8087:8087"
+    networks:
+      - warmhouse-network
+
+  warmhouse_devices:
+    build:
+      context: .
+      dockerfile: warmhouse_devices/Dockerfile
+    container_name: warmhouse_devices
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      gates-api:
+        condition: service_started
+      temperature-api:
+        condition: service_started
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DEVICES_PASSWORD=${DEVICES_PASSWORD}
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "8086:8086"
+    networks:
+      - warmhouse-network
 
 volumes:
   postgres_data:
+  postgres_data_new:
+  redis_data:
+  rabbitmq_data:
+  rabbitmq_logs:
 
 networks:
-  smarthome-network:
+  warmhouse-network:
     driver: bridge

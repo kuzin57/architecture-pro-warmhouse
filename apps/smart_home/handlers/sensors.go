@@ -7,24 +7,42 @@ import (
 	"net/http"
 	"strconv"
 
+	userapi "smarthome/clients/user_api"
+	"smarthome/config"
+	"smarthome/consts"
 	"smarthome/db"
+	"smarthome/generated/async"
 	"smarthome/models"
 	"smarthome/services"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/warmhouse/libraries/convert"
 )
 
 // SensorHandler handles sensor-related requests
 type SensorHandler struct {
 	DB                 *db.DB
 	TemperatureService *services.TemperatureService
+	broker             *async.UserController
+	secrets            *config.Secrets
+	userAPI            *userapi.Client
 }
 
 // NewSensorHandler creates a new SensorHandler
-func NewSensorHandler(db *db.DB, temperatureService *services.TemperatureService) *SensorHandler {
+func NewSensorHandler(
+	db *db.DB,
+	temperatureService *services.TemperatureService,
+	broker *async.UserController,
+	secrets *config.Secrets,
+	userAPI *userapi.Client,
+) *SensorHandler {
 	return &SensorHandler{
 		DB:                 db,
 		TemperatureService: temperatureService,
+		broker:             broker,
+		secrets:            secrets,
+		userAPI:            userAPI,
 	}
 }
 
@@ -136,8 +154,33 @@ func (h *SensorHandler) CreateSensor(c *gin.Context) {
 		return
 	}
 
+	sensorCreate.DeviceID = uuid.NewString()
+
 	sensor, err := h.DB.CreateSensor(context.Background(), sensorCreate)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	defaultUserInfo, err := h.userAPI.GetDefaultUser(context.Background())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.broker.SendToDeviceCreatedOperation(context.Background(), async.DeviceCreatedMessageFromDeviceCreatedChannel{
+		Payload: async.DeviceCreatedMessageFromDeviceCreatedChannelPayload{
+			SensorId:   convert.FromIntToInt64(&sensor.ID),
+			HouseId:    defaultUserInfo.DefaultHouseID,
+			Location:   &sensor.Location,
+			Host:       consts.DefaultSensorHost,
+			Name:       sensor.Name,
+			Unit:       sensor.Unit,
+			Value:      convert.ValueToPointer(fmt.Sprint(sensor.Value)),
+			DeviceType: string(models.Temperature),
+			DeviceId:   sensor.DeviceID,
+		},
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -159,8 +202,30 @@ func (h *SensorHandler) UpdateSensor(c *gin.Context) {
 		return
 	}
 
+	defaultUserInfo, err := h.userAPI.GetDefaultUser(context.Background())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	sensor, err := h.DB.UpdateSensor(context.Background(), id, sensorUpdate)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.broker.SendToDeviceUpdatedOperation(context.Background(), async.DeviceUpdatedMessageFromDeviceUpdatedChannel{
+		Payload: async.DeviceUpdatedMessageFromDeviceUpdatedChannelPayload{
+			DeviceId: sensor.DeviceID,
+			HouseId:  defaultUserInfo.DefaultHouseID,
+			Location: &sensor.Location,
+			Name:     &sensor.Name,
+			Unit:     &sensor.Unit,
+			Value:    convert.ValueToPointer(fmt.Sprint(sensor.Value)),
+			Type:     string(models.Temperature),
+			Status:   convert.ValueToPointer(sensor.Status),
+		},
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -176,8 +241,31 @@ func (h *SensorHandler) DeleteSensor(c *gin.Context) {
 		return
 	}
 
+	sensor, err := h.DB.GetSensorByID(context.Background(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	defaultUserInfo, err := h.userAPI.GetDefaultUser(context.Background())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	err = h.DB.DeleteSensor(context.Background(), id)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.broker.SendToDeviceDeletedOperation(context.Background(), async.DeviceDeletedMessageFromDeviceDeletedChannel{
+		Payload: async.DeviceDeletedMessageFromDeviceDeletedChannelPayload{
+			DeviceId: sensor.DeviceID,
+			HouseId:  defaultUserInfo.DefaultHouseID,
+			Type:     string(models.Temperature),
+		},
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -203,8 +291,33 @@ func (h *SensorHandler) UpdateSensorValue(c *gin.Context) {
 		return
 	}
 
+	defaultUserInfo, err := h.userAPI.GetDefaultUser(context.Background())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	sensor, err := h.DB.GetSensorByID(context.Background(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	err = h.DB.UpdateSensorValue(context.Background(), id, request.Value, request.Status)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.broker.SendToDeviceUpdatedOperation(context.Background(), async.DeviceUpdatedMessageFromDeviceUpdatedChannel{
+		Payload: async.DeviceUpdatedMessageFromDeviceUpdatedChannelPayload{
+			DeviceId: sensor.DeviceID,
+			HouseId:  defaultUserInfo.DefaultHouseID,
+			Value:    convert.ValueToPointer(fmt.Sprint(request.Value)),
+			Type:     string(models.Temperature),
+			Status:   convert.ValueToPointer(request.Status),
+		},
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -1,0 +1,161 @@
+@startuml(devices_component_diagram)
+!theme cerulean
+skinparam backgroundColor white
+skinparam component {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam database {
+    BackgroundColor SteelBlue
+    BorderColor DarkBlue
+}
+skinparam queue {
+    BackgroundColor LightGray
+    BorderColor DarkGray
+}
+
+title [Component] Warmhouse Devices Application
+
+' External Systems
+[Software System] as message_queue
+note bottom of message_queue
+  Message Queue System
+  RabbitMQ - receives device
+  control commands and events
+end note
+
+[Software System] as elasticsearch
+note bottom of elasticsearch
+  Elasticsearch
+  Centralized logging and
+  monitoring data warehouse
+end note
+
+' Devices Application Container
+package "Devices Application [Container]" {
+    [Component: Message Router Controller] as router_controller
+    note bottom of router_controller
+      Consumes messages from queue,
+      validates device messages and
+      routes to appropriate services
+    end note
+    
+    ' Service Components
+    [Component: Gates Service] as gates_service
+    note bottom of gates_service
+      Manages gate devices,
+      controls gate operations,
+      handles gate state changes
+    end note
+    
+    [Component: Warming Service] as warming_service
+    note bottom of warming_service
+      Manages temperature devices,
+      monitors temperature sensors,
+      handles heating control
+    end note
+    
+    ' Cron Job Components
+    [Component: Gates Status Checker] as gates_checker
+    note bottom of gates_checker
+      Periodic task that checks
+      gate status and updates
+      device state
+    end note
+    
+    [Component: Temperature Checker] as temp_checker
+    note bottom of temp_checker
+      Periodic task that checks
+      temperature sensors and
+      collects telemetry data
+    end note
+    
+    ' Repository Components
+    [Component: Devices Repository] as devices_repo
+    note bottom of devices_repo
+      Manages device data persistence,
+      handles CRUD operations
+      for all device types
+    end note
+    
+    [Component: Telemetry Repository] as telemetry_repo
+    note bottom of telemetry_repo
+      Manages telemetry data persistence,
+      stores sensor readings
+      and device metrics
+    end note
+    
+    ' External API Clients
+    [Component: Gates API Client] as gates_client
+    note bottom of gates_client
+      HTTP client for communicating
+      with gate hardware via REST API
+    end note
+    
+    [Component: Temperature API Client] as temp_client
+    note bottom of temp_client
+      HTTP client for communicating
+      with temperature sensors via REST API
+    end note
+}
+
+' Database
+database "Warmhouse Database" as db
+note bottom of db
+  [Container: PostgreSQL Database]
+  Stores device configuration,
+  telemetry data and logs
+end note
+
+' External Hardware Systems
+[Software System] as gates_hw
+note bottom of gates_hw
+  Gate Hardware
+  Automatic garage gates
+  controlled via REST API
+end note
+
+[Software System] as temp_hw
+note bottom of temp_hw
+  Temperature Sensors
+  IoT temperature sensors
+  providing real-time data
+end note
+
+' Message Queue to Controller Connection
+message_queue --> router_controller : Delivers messages via [AMQP]
+
+' Internal Controller to Service Connections
+router_controller --> gates_service : Routes gate commands
+router_controller --> warming_service : Routes temperature commands
+
+' Service to Repository Connections
+gates_service --> devices_repo : Manages device data via [SQL]
+warming_service --> devices_repo : Manages device data via [SQL]
+gates_service --> telemetry_repo : Stores telemetry via [SQL]
+warming_service --> telemetry_repo : Stores telemetry via [SQL]
+
+' Service to External API Client Connections
+gates_service --> gates_client : Controls gates via [HTTP/REST]
+warming_service --> temp_client : Reads temperature via [HTTP/REST]
+
+' Cron Jobs to Service Connections
+gates_checker --> gates_service : Updates gate status
+temp_checker --> warming_service : Updates temperature data
+
+' External API Clients to Hardware Connections
+gates_client --> gates_hw : Controls gate operations via [HTTP/REST]
+temp_client --> temp_hw : Reads sensor data via [HTTP/REST]
+
+' Repository to Database Connections
+devices_repo --> db : Reads from and writes to [SQL/TCP]
+telemetry_repo --> db : Reads from and writes to [SQL/TCP]
+
+' Devices to Elasticsearch Connection
+note right of elasticsearch
+  All components within
+  devices service send logs here
+end note
+
+@enduml

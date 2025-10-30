@@ -1,0 +1,17 @@
+@startuml
+!include <C4/C4_Context>
+!include <C4/C4_Container>
+
+title Контекстная диаграмма системы WarmHouse
+
+Person(user, "Пользователь", "Выполняет запросы к системе для получения данных")
+System_Boundary(warmhouse_boundary, "Сервис WarmHouse") {
+    System(warmhouse, "WarmHouse", "Сервис управления температурными показателями")
+}
+System(db, "База данных", "Хранит исторические данные и конфигурации")
+System(sensors, "Датчики температуры", "Внешние IoT-устройства для измерения температуры")
+
+Rel(user, warmhouse, "Выполняет запросы", "HTTP/API")
+Rel(warmhouse, db, "Чтение/запись данных", "SQL/NoSQL")
+Rel(warmhouse, sensors, "Запрашивает текущие показания", "MQTT/API")
+@enduml

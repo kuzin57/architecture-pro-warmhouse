@@ -22,6 +22,7 @@ type Sensor struct {
 	Status      string     `json:"status"`
 	LastUpdated time.Time  `json:"last_updated"`
 	CreatedAt   time.Time  `json:"created_at"`
+	DeviceID    string     `json:"device_id"`
 }
 
 // SensorCreate represents the data needed to create a new sensor
@@ -30,6 +31,7 @@ type SensorCreate struct {
 	Type     SensorType `json:"type" binding:"required"`
 	Location string     `json:"location" binding:"required"`
 	Unit     string     `json:"unit"`
+	DeviceID string     `json:"-"`
 }
 
 // SensorUpdate represents the data that can be updated for a sensor

@@ -1,0 +1,163 @@
+@startuml(user_api_component_diagram)
+!theme cerulean
+skinparam backgroundColor white
+skinparam component {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam database {
+    BackgroundColor SteelBlue
+    BorderColor DarkBlue
+}
+skinparam queue {
+    BackgroundColor LightGray
+    BorderColor DarkGray
+}
+
+title [Component] Warmhouse User API Application
+
+' Client Applications
+[Container: Web Browser] as web
+note right of web
+  Provides user interface for
+  controlling smart home devices
+end note
+
+[Container: Mobile App] as mobile
+note right of mobile
+  Provides mobile access to
+  smart home controls
+end note
+
+' API Application Container
+package "User API Application [Container]" {
+    [Component: Registration Controller] as reg_controller
+    note bottom of reg_controller
+      Handles user registration
+      and account creation
+    end note
+    
+    [Component: Authentication Controller] as auth_controller
+    note bottom of auth_controller
+      Manages user login
+      and session validation
+    end note
+    
+    [Component: Temperature Controller] as temp_controller
+    note bottom of temp_controller
+      Processes temperature
+      control requests
+    end note
+    
+    [Component: Gate Controller] as gate_controller
+    note bottom of gate_controller
+      Handles gate opening/closing
+      commands
+    end note
+    
+    [Component: Video Controller] as video_controller
+    note bottom of video_controller
+      Manages video streaming
+      requests from cameras
+    end note
+    
+    [Component: Device Info Controller] as device_controller
+    note bottom of device_controller
+      Provides device status
+      and information
+    end note
+    
+    ' Service Components
+    [Component: User Service] as user_service
+    note bottom of user_service
+      Manages user authentication,
+      registration and authorization
+    end note
+    
+    [Component: Temperature Service] as temp_service
+    note bottom of temp_service
+      Handles temperature control
+      logic and validation
+    end note
+    
+    [Component: Gate Service] as gate_service
+    note bottom of gate_service
+      Manages gate operations
+      and status tracking
+    end note
+    
+    [Component: Video Service] as video_service
+    note bottom of video_service
+      Processes video requests
+      and streaming coordination
+    end note
+}
+
+' Database
+database "Warmhouse Database" as db
+note bottom of db
+  [Container: PostgreSQL Database]
+  Stores user credentials,
+  device settings and
+  system configuration data
+end note
+
+' External Systems
+[Software System] as mq
+note bottom of mq
+  Message Queue System
+  Routes commands to other
+  microservices
+end note
+
+[Software System] as elasticsearch
+note bottom of elasticsearch
+  Elasticsearch
+  Centralized logging and
+  monitoring data warehouse
+end note
+
+' Client to Controller Connections
+web --> reg_controller : Makes API calls to [JSON/HTTPS]
+mobile --> reg_controller : Makes API calls to [JSON/HTTPS]
+
+web --> auth_controller : Makes API calls to [JSON/HTTPS]
+mobile --> auth_controller : Makes API calls to [JSON/HTTPS]
+
+web --> temp_controller : Makes API calls to [JSON/HTTPS]
+mobile --> temp_controller : Makes API calls to [JSON/HTTPS]
+
+web --> gate_controller : Makes API calls to [JSON/HTTPS]
+mobile --> gate_controller : Makes API calls to [JSON/HTTPS]
+
+web --> video_controller : Makes API calls to [JSON/HTTPS]
+mobile --> video_controller : Makes API calls to [JSON/HTTPS]
+
+web --> device_controller : Makes API calls to [JSON/HTTPS]
+mobile --> device_controller : Makes API calls to [JSON/HTTPS]
+
+' Controller to Service Connections
+reg_controller --> user_service : Uses
+auth_controller --> user_service : Uses
+temp_controller --> temp_service : Uses
+gate_controller --> gate_service : Uses
+video_controller --> video_service : Uses
+device_controller --> user_service : Uses
+
+' Service to Database Connections
+user_service --> db : Reads from and writes to [SQL/TCP]
+
+' Service to Message Queue Connections
+user_service --> mq : Publishes messages to [JSON/TCP]
+temp_service --> mq : Publishes messages to [JSON/TCP]
+gate_service --> mq : Publishes messages to [JSON/TCP]
+video_service --> mq : Publishes messages to [JSON/TCP]
+
+' User API to Elasticsearch Connection
+note right of elasticsearch
+  All components within
+  user-api send logs here
+end note
+
+@enduml

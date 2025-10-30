@@ -1,0 +1,40 @@
+@startuml
+!include <C4/C4_Container>
+
+AddElementTag("microservice", $bgColor="#87ceeb", $fontColor="#000000")
+AddElementTag("db", $bgColor="#ff9f28", $fontColor="#ffffff")
+AddElementTag("queue", $bgColor="#5b9bd5", $fontColor="#ffffff")
+AddElementTag("storage", $bgColor="#9b59b6", $fontColor="#ffffff")
+
+Person(user, "Пользователь", "Владелец умного дома")
+
+System_Boundary(warmhouse, "Система WarmHouse") {
+    Container(authproxy, "Auth Proxy", "warmhouse-authproxy", "Аутентификация и проксирование запросов", $tags="microservice")
+    Container(user_api, "User API", "warmhouse-user-api", "Обработка пользовательских запросов", $tags="microservice")
+    Container(devices, "Devices Service", "warmhouse-devices", "Управление всеми устройствами (ворота, датчики)", $tags="microservice")
+    Container(smart_home, "Smart Home", "warmhouse-smart-home", "Агрегатор данных с датчиков и координация устройств", $tags="microservice")
+    
+    ContainerDb(db, "Database", "PostgreSQL", "Главное хранилище данных", $tags="db")
+    ContainerQueue(queue, "Message Queue", "RabbitMQ", "Шина событий", $tags="queue")
+}
+
+Rel(user, authproxy, "Отправляет запросы", "HTTPS")
+Rel(authproxy, user_api, "Проксирует запросы", "HTTP")
+
+Rel(user_api, db, "Чтение данных", "JDBC\n(read-only)")
+Rel(devices, db, "Чтение/запись", "JDBC")
+Rel(smart_home, db, "Чтение/запись", "JDBC")
+
+Rel(user_api, queue, "Публикация событий", "AMQP")
+Rel(queue, devices, "Слушает события", "AMQP")
+Rel(queue, smart_home, "Слушает события", "AMQP")
+
+Rel(smart_home, user_api, "Получение информации о пользователе", "HTTP/REST")
+
+System_Ext(sensors, "Датчики температуры", "Внешние устройства")
+System_Ext(gates_hw, "Ворота", "Автоматические ворота гаража")
+
+Rel(sensors, smart_home, "Отправка телеметрии", "HTTP/REST")
+Rel(devices, gates_hw, "Управление двигателем", "HTTP/REST")
+
+@enduml

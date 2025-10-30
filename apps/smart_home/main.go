@@ -9,16 +9,49 @@ import (
 	"syscall"
 	"time"
 
+	userapi "smarthome/clients/user_api"
+	"smarthome/config"
 	"smarthome/db"
+	"smarthome/generated/async"
 	"smarthome/handlers"
 	"smarthome/services"
+
+	"github.com/warmhouse/libraries/rabbitmq"
+	"gopkg.in/yaml.v2"
 
 	"github.com/gin-gonic/gin"
 )
 
+func mustLoadSecrets(secretsPath string) *config.Secrets {
+	data, err := os.ReadFile(secretsPath)
+	if err != nil {
+		log.Fatalf("Unable to load secrets: %v\n", err)
+	}
+
+	secrets := &config.Secrets{}
+	if err := yaml.Unmarshal(data, secrets); err != nil {
+		log.Fatalf("Unable to unmarshal secrets: %v\n", err)
+	}
+
+	return secrets
+}
+
+func mustLoadConfig(configPath string) *config.Config {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		log.Fatalf("Unable to load config: %v\n", err)
+	}
+
+	config := &config.Config{}
+	if err := yaml.Unmarshal(data, config); err != nil {
+		log.Fatalf("Unable to unmarshal config: %v\n", err)
+	}
+	return config
+}
+
 func main() {
 	// Set up database connection
-	dbURL := getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/smarthome")
+	dbURL := getEnv("DATABASE_URL", "postgres://postgres:postgres_dev_password@localhost:5432/smarthome")
 	database, err := db.New(dbURL)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
@@ -45,8 +78,29 @@ func main() {
 	// API routes
 	apiRoutes := router.Group("/api/v1")
 
+	var (
+		secrets = mustLoadSecrets("secrets.yaml")
+		config  = mustLoadConfig("config.yaml")
+	)
+
+	userAPI, err := userapi.NewClient(config.UserAPI.URL, secrets)
+	if err != nil {
+		log.Fatalf("Unable to create user API client: %v\n", err)
+	}
+
+	rabbitmqBroker, err := rabbitmq.NewRabbitMQBrokerController(&secrets.RabbitMQ)
+	if err != nil {
+		log.Fatalf("Unable to create rabbitmq broker: %v\n", err)
+	}
+	defer rabbitmqBroker.Close()
+
+	broker, err := async.NewUserController(rabbitmqBroker)
+	if err != nil {
+		log.Fatalf("Unable to create user controller: %v\n", err)
+	}
+
 	// Register sensor routes
-	sensorHandler := handlers.NewSensorHandler(database, temperatureService)
+	sensorHandler := handlers.NewSensorHandler(database, temperatureService, broker, secrets, userAPI)
 	sensorHandler.RegisterRoutes(apiRoutes)
 
 	// Start server

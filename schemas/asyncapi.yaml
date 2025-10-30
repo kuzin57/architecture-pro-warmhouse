@@ -1,0 +1,301 @@
+asyncapi: 3.0.0
+info:
+    title: WarmHouse Microservices Communication
+    version: 1.0.0
+    description: |
+        AsyncAPI спецификация для взаимодействия между микросервисами системы WarmHouse.
+
+        Сервисы:
+        - warmhouse_user_api: Управление пользователями, домами и устройствами
+        - warmhouse_devices: Управление девайсами
+    contact:
+        name: WarmHouse Team
+        email: team@warmhouse.com
+    license:
+        name: MIT
+        url: https://opensource.org/licenses/MIT
+
+servers:
+    rabbitmq:
+        host: amqp://localhost:5672
+        protocol: amqp
+        description: RabbitMQ брокер сообщений
+        security:
+            userPassword: []
+        bindings:
+            amqp:
+                connectionName: warmhouse-connection
+                queue:
+                    durable: true
+                    autoDelete: false
+                exchange:
+                    type: topic
+                    durable: true
+                    autoDelete: false
+
+defaultContentType: application/json
+
+operations:
+    userDeleted:
+        action: receive
+        channel:
+            $ref: '#/channels/user.deleted'
+        messages:
+            - $ref: '#/channels/user.deleted/messages/userDeleted'
+    
+    houseDeleted:
+        action: receive
+        channel:
+            $ref: '#/channels/house.deleted'
+        messages:
+            - $ref: '#/channels/house.deleted/messages/houseDeleted'
+    
+    deviceCreated:
+        action: receive
+        channel:
+            $ref: '#/channels/device.created'
+        messages:
+            - $ref: '#/channels/device.created/messages/deviceCreated'
+    
+    deviceUpdated:
+        action: receive
+        channel:
+            $ref: '#/channels/device.updated'
+        messages:
+            - $ref: '#/channels/device.updated/messages/deviceUpdated'
+    
+    deviceDeleted:
+        action: receive
+        channel:
+            $ref: '#/channels/device.deleted'
+        messages:
+            - $ref: '#/channels/device.deleted/messages/deviceDeleted'
+
+channels:
+    user.deleted:
+        address: user.deleted
+        messages:
+            userDeleted:
+                name: UserDeleted
+                title: Пользователь удален
+                summary: Событие удаления пользователя
+                contentType: application/json
+                payload:
+                    type: object
+                    properties:
+                        userId:
+                            type: string
+                            format: uuid
+                            description: ID пользователя
+                    required:
+                        - userId
+        description: Событие удаления пользователя
+        bindings:
+            amqp:
+                is: queue
+                queue:
+                    name: user.deleted
+                    durable: true
+                    autoDelete: false
+
+    house.deleted:
+        address: house.deleted
+        messages:
+            houseDeleted:
+                name: HouseDeleted
+                title: Дом удален
+                summary: Событие удаления дома
+                contentType: application/json
+                payload:
+                    type: object
+                    properties:
+                        houseId:
+                            type: string
+                            format: uuid
+                            description: ID дома
+                    required:
+                        - houseId
+        description: Событие удаления дома
+        bindings:
+            amqp:
+                is: queue
+                queue:
+                    name: house.deleted
+                    durable: true
+                    autoDelete: false
+
+    device.created:
+        address: device.created
+        messages:
+            deviceCreated:
+                name: DeviceCreated
+                title: Устройство создано
+                summary: Событие создания устройства
+                contentType: application/json
+                payload:
+                    type: object
+                    properties:
+                        deviceId:
+                            type: string
+                            format: uuid
+                            description: ID устройства
+                        houseId:
+                            type: string
+                            format: uuid
+                            description: ID дома
+                        deviceType:
+                            type: string
+                            enum: [warming, video, gates, sensor]
+                            description: Тип устройства
+                        name:
+                            type: string
+                            description: Название устройства
+                        sensorId:
+                            type: integer
+                            description: ID сенсора устройства
+                        location:
+                            type: string
+                            description: Местоположение устройства
+                        host:
+                            type: string
+                            description: Хост устройства
+                        value:
+                            type: string
+                            description: Значение устройства
+                        unit:
+                            type: string
+                            description: Единица измерения устройства
+                        schedule:
+                            type: string
+                            description: Расписание устройства
+                            example: "0 0 * * *"
+                    required:
+                        - deviceId
+                        - houseId
+                        - deviceType
+                        - name
+                        - host
+                        - unit
+        description: Событие создания устройства
+        bindings:
+            amqp:
+                is: queue
+                queue:
+                    name: device.created
+                    durable: true
+                    autoDelete: false
+
+    device.updated:
+        address: device.updated
+        messages:
+            deviceUpdated:
+                name: DeviceUpdated
+                title: Устройство обновлено
+                summary: Событие обновления устройства
+                contentType: application/json
+                payload:
+                    type: object
+                    properties:
+                        deviceId:
+                            type: string
+                            format: uuid
+                            description: ID устройства
+                        houseId:
+                            type: string
+                            format: uuid
+                            description: ID дома
+                        name:
+                            type: string
+                            description: Новое название устройства
+                        location:
+                            type: string
+                            description: Новое местоположение устройства
+                        sensorId:
+                            type: integer
+                            description: Новый ID сенсора устройства
+                        status:
+                            type: string
+                            enum: [active, inactive]
+                            description: Новый статус устройства
+                        type:
+                            type: string
+                            enum: [temperature, gates, video]
+                            description: Новый тип устройства
+                        unit:
+                            type: string
+                            description: Новая единица измерения устройства
+                        value:
+                            type: string
+                            description: Новое значение устройства
+                        host:
+                            type: string
+                            description: Новый хост устройства
+                        schedule:
+                            type: string
+                            description: Новое расписание устройства
+                            example: "0 0 * * *"
+                    required:
+                        - deviceId
+                        - houseId
+                        - type
+
+        description: Событие обновления устройства
+        bindings:
+            amqp:
+                is: queue
+                queue:
+                    name: device.updated
+                    durable: true
+                    autoDelete: false
+
+    device.deleted:
+        address: device.deleted
+        messages:
+            deviceDeleted:
+                name: DeviceDeleted
+                title: Устройство удалено
+                summary: Событие удаления устройства
+                contentType: application/json
+                payload:
+                    type: object
+                    properties:
+                        deviceId:
+                            type: string
+                            format: uuid
+                            description: ID устройства
+                        houseId:
+                            type: string
+                            format: uuid
+                            description: ID дома
+                        type:
+                            type: string
+                            enum: [temperature, gates, video]
+                            description: Тип устройства
+                    required:
+                        - deviceId
+                        - houseId
+                        - type
+        description: Событие удаления устройства
+        bindings:
+            amqp:
+                is: queue
+                queue:
+                    name: device.deleted
+                    durable: true
+                    autoDelete: false
+
+tags:
+    - name: user
+      description: События пользователей
+    - name: house
+      description: События домов
+    - name: device
+      description: События устройств
+    - name: warming
+      description: Команды и события отопления
+    - name: video
+      description: Команды и события видеонаблюдения
+    - name: gates
+      description: Команды и события ворот
+    - name: telemetry
+      description: Телеметрия

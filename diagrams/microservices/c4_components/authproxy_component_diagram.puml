@@ -1,0 +1,107 @@
+@startuml(authproxy_component_diagram)
+!theme cerulean
+skinparam backgroundColor white
+skinparam component {
+    BackgroundColor LightBlue
+    BorderColor DarkBlue
+    ArrowColor DarkBlue
+}
+skinparam database {
+    BackgroundColor SteelBlue
+    BorderColor DarkBlue
+}
+skinparam queue {
+    BackgroundColor LightGray
+    BorderColor DarkGray
+}
+
+title [Component] Warmhouse Auth Proxy Application
+
+' Client Applications
+[Container: Web Browser] as web
+note right of web
+  Makes requests through
+  auth proxy for security
+end note
+
+[Container: Mobile App] as mobile
+note right of mobile
+  Makes requests through
+  auth proxy for security
+end note
+
+' Auth Proxy Application Container
+package "Auth Proxy Application [Container]" {
+    [Component: Request Proxy Controller] as proxy_controller
+    note bottom of proxy_controller
+      Receives and forwards client requests,
+      implements rate limiting, checks authentication
+      and adds authorization headers
+    end note
+    
+    ' Service Components
+    [Component: Proxy Service] as proxy_service
+    note bottom of proxy_service
+      Manages request routing
+      and load balancing
+    end note
+    
+    [Component: Rate Limiting Service] as rate_service
+    note bottom of rate_service
+      Implements rate limiting
+      algorithms and policies
+    end note
+    
+    [Component: Authentication Service] as auth_service
+    note bottom of auth_service
+      Handles token validation
+      and user authentication
+    end note
+}
+
+' Cache Database
+database "Redis Cache" as cache
+note bottom of cache
+  [Container: Redis Database]
+  Stores user session cache
+  and authentication data
+end note
+
+' External Systems
+[Software System] as user_api
+note bottom of user_api
+  User API Service
+  Validates user credentials
+  and provides user data
+end note
+
+[Software System] as elasticsearch
+note bottom of elasticsearch
+  Elasticsearch
+  Centralized logging and
+  monitoring data warehouse
+end note
+
+' Client to Auth Proxy Connections
+web --> proxy_controller : Makes requests to [HTTPS]
+mobile --> proxy_controller : Makes requests to [HTTPS]
+
+' Internal Controller to Service Connections
+proxy_controller --> proxy_service : Uses
+proxy_controller --> rate_service : Uses
+proxy_controller --> auth_service : Uses
+
+' Service to External Systems Connections
+auth_service --> user_api : Validates tokens via [JSON/HTTPS]
+proxy_service --> user_api : Validates tokens via [JSON/HTTPS]
+
+' Service to Cache Connections
+auth_service --> cache : Reads from and writes to [Redis Protocol]
+
+' Auth Proxy to Elasticsearch Connection
+note right of elasticsearch
+  All components within
+  auth-proxy send logs here
+end note
+
+@enduml

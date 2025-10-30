@@ -41,7 +41,7 @@ func (db *DB) Close() {
 // GetSensors retrieves all sensors from the database
 func (db *DB) GetSensors(ctx context.Context) ([]models.Sensor, error) {
 	query := `
-		SELECT id, name, type, location, value, unit, status, last_updated, created_at
+		SELECT id, name, type, location, value, unit, status, device_id, last_updated, created_at
 		FROM sensors
 		ORDER BY id
 	`
@@ -63,6 +63,7 @@ func (db *DB) GetSensors(ctx context.Context) ([]models.Sensor, error) {
 			&s.Value,
 			&s.Unit,
 			&s.Status,
+			&s.DeviceID,
 			&s.LastUpdated,
 			&s.CreatedAt,
 		)
@@ -82,7 +83,7 @@ func (db *DB) GetSensors(ctx context.Context) ([]models.Sensor, error) {
 // GetSensorByID retrieves a sensor by its ID
 func (db *DB) GetSensorByID(ctx context.Context, id int) (models.Sensor, error) {
 	query := `
-		SELECT id, name, type, location, value, unit, status, last_updated, created_at
+		SELECT id, name, type, location, value, unit, status, device_id, last_updated, created_at
 		FROM sensors
 		WHERE id = $1
 	`
@@ -96,6 +97,7 @@ func (db *DB) GetSensorByID(ctx context.Context, id int) (models.Sensor, error) 
 		&s.Value,
 		&s.Unit,
 		&s.Status,
+		&s.DeviceID,
 		&s.LastUpdated,
 		&s.CreatedAt,
 	)
@@ -109,9 +111,9 @@ func (db *DB) GetSensorByID(ctx context.Context, id int) (models.Sensor, error) 
 // CreateSensor creates a new sensor in the database
 func (db *DB) CreateSensor(ctx context.Context, s models.SensorCreate) (models.Sensor, error) {
 	query := `
-		INSERT INTO sensors (name, type, location, unit, status, last_updated, created_at)
-		VALUES ($1, $2, $3, $4, 'inactive', $5, $5)
-		RETURNING id, name, type, location, value, unit, status, last_updated, created_at
+		INSERT INTO sensors (name, type, location, unit, status, device_id, last_updated, created_at)
+		VALUES ($1, $2, $3, $4, 'inactive', $5, $6, $7)
+		RETURNING id, name, type, location, value, unit, status, device_id, last_updated, created_at
 	`
 
 	now := time.Now()
@@ -121,6 +123,8 @@ func (db *DB) CreateSensor(ctx context.Context, s models.SensorCreate) (models.S
 		s.Type,
 		s.Location,
 		s.Unit,
+		s.DeviceID,
+		now,
 		now,
 	).Scan(
 		&sensor.ID,
@@ -130,6 +134,7 @@ func (db *DB) CreateSensor(ctx context.Context, s models.SensorCreate) (models.S
 		&sensor.Value,
 		&sensor.Unit,
 		&sensor.Status,
+		&sensor.DeviceID,
 		&sensor.LastUpdated,
 		&sensor.CreatedAt,
 	)
@@ -191,7 +196,7 @@ func (db *DB) UpdateSensor(ctx context.Context, id int, s models.SensorUpdate) (
 
 	// Add the WHERE clause and RETURNING clause
 	query += ` WHERE id = $` + fmt.Sprintf("%d", argCount) + `
-		RETURNING id, name, type, location, value, unit, status, last_updated, created_at`
+		RETURNING id, name, type, location, value, unit, status, device_id, last_updated, created_at`
 	args = append(args, id)
 
 	var sensor models.Sensor
@@ -203,6 +208,7 @@ func (db *DB) UpdateSensor(ctx context.Context, id int, s models.SensorUpdate) (
 		&sensor.Value,
 		&sensor.Unit,
 		&sensor.Status,
+		&sensor.DeviceID,
 		&sensor.LastUpdated,
 		&sensor.CreatedAt,
 	)

@@ -1,0 +1,64 @@
+@startuml
+!include <C4/C4_Component>
+
+AddElementTag("web", $bgColor="#cde498", $fontColor="#000000")
+AddElementTag("handler", $bgColor="#87ceeb", $fontColor="#000000")
+AddElementTag("service", $bgColor="#98d8c8", $fontColor="#000000")
+AddElementTag("client", $bgColor="#f7ccac", $fontColor="#000000")
+AddElementTag("db", $bgColor="#ff9f28", $fontColor="#ffffff")
+AddElementTag("queue", $bgColor="#5b9bd5", $fontColor="#ffffff")
+
+Container_Boundary(smarthome, "Smart Home Application") {
+    
+    package "Presentation Layer" {
+        Component(httpserver, "HTTP Server", "Gin Framework", "Обработка HTTP запросов\nи маршрутизация", $tags="web")
+        Component(sensorhandler, "Sensor Handler", "Gin Handler\n/handlers/sensors.go", "Обработка CRUD операций:\n- GetSensors\n- CreateSensor\n- UpdateSensor\n- DeleteSensor", $tags="handler")
+    }
+    
+    package "Business Logic Layer" {
+        Component(tempservice, "Temperature Service", "/services/temperature", "Получение температурных данных:\n- GetTemperature\n- GetTemperatureByID", $tags="service")
+        Component(broker, "Message Broker", "/generated/async", "Публикация событий:\n- DeviceCreated", $tags="queue")
+    }
+    
+    package "Integration Layer" {
+        Component(userapiclient, "User API Client", "/clients/user_api", "Получение информации:\n- GetDefaultUser\n- DefaultHouseID", $tags="client")
+    }
+    
+    package "Data Access Layer" {
+        Component(db, "Database Layer", "PostgreSQL Adapter\n(db package)", "CRUD операции:\n- GetSensors\n- CreateSensor\n- UpdateSensor\n- DeleteSensor", $tags="db")
+    }
+    
+    package "Persistence Layer" {
+        ComponentDb(database, "PostgreSQL", "PostgreSQL", "Хранилище:\n- sensors", $tags="db")
+    }
+    
+    package "Queue Layer" {
+        ComponentQueue(rabbitmq, "RabbitMQ", "RabbitMQ", "Очереди сообщений", $tags="queue")
+    }
+}
+
+Container(userapi, "User API", "warmhouse-user-api", "Информация о пользователях")
+Container(tempapi, "Temperature API", "temperature-api", "Данные с датчиков")
+
+' Presentation Layer
+Rel(httpserver, sensorhandler, "→ Route HTTP", "HTTP Requests")
+
+' Handler to Services/Clients
+Rel(sensorhandler, db, "→ CRUD", "Go methods")
+Rel(sensorhandler, tempservice, "→ Get Temp", "HTTP/REST")
+Rel(sensorhandler, userapiclient, "→ Get User", "HTTP/REST")
+Rel(sensorhandler, broker, "→ Publish", "SendToDeviceCreated")
+
+' Service to External API
+Rel(tempservice, tempapi, "→ HTTP", "REST API")
+Rel(userapiclient, userapi, "→ HTTP", "REST API")
+
+' Broker to Queue
+Rel(broker, rabbitmq, "→ Pub/Sub", "AMQP")
+Rel_Back(rabbitmq, broker, "← Events", "AMQP")
+
+' Data Access to Database
+Rel(db, database, "→ SQL", "pgx driver (CRUD)")
+
+SHOW_LEGEND()
+@enduml

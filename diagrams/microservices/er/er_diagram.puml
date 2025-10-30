@@ -1,0 +1,73 @@
+@startuml er_diagram
+
+!define PRIMARY_KEY_COLOR #FFD700
+!define FOREIGN_KEY_COLOR #87CEEB
+
+skinparam class {
+    BackgroundColor #E8F5E9
+    BorderColor #4CAF50
+    ArrowColor #4CAF50
+}
+
+hide methods
+hide stereotypes
+
+package "warmhouse schema" {
+    entity "users" as users {
+        **id** : UUID <<PK>> {{PRIMARY_KEY_COLOR}}
+        --
+        email : TEXT <<UNIQUE>>
+        phone : TEXT
+        name : TEXT
+        hashed_password : TEXT
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
+    entity "houses" as houses {
+        **id** : UUID <<PK>> {{PRIMARY_KEY_COLOR}}
+        --
+        user_id : UUID <<FK>>
+        address : TEXT
+        name : TEXT
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
+    entity "devices" as devices {
+        **id** : UUID <<PK>> {{PRIMARY_KEY_COLOR}}
+        --
+        house_id : UUID <<FK>> {{FOREIGN_KEY_COLOR}}
+        name : TEXT
+        type : ENUM(temperature|gates|video) <<NOT_NULL>>
+        status : ENUM(active|inactive|unknown) <<NOT_NULL>>
+        sensor_id : INTEGER
+        location : TEXT <<NOT_NULL>>
+        host : TEXT <<NOT_NULL>>
+        unit : TEXT
+        value : TEXT
+        schedule : TEXT <<NOT_NULL>> DEFAULT '* * * * *'
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
+    entity "telemetry" as telemetry {
+        **device_id** : UUID <<PK>> {{PRIMARY_KEY_COLOR}}
+        **timestamp** : TIMESTAMP <<PK>> {{PRIMARY_KEY_COLOR}}
+        --
+        data : TEXT
+    }
+
+    users ||--o{ houses : "owns"
+    houses ||--o{ devices : "contains"
+    devices ||--o{ telemetry : "records"
+}
+
+legend right
+  |<#FFD700> PK </color>| Primary Key |
+  |<#87CEEB> FK </color>| Foreign Key |
+  |<#FFD700>**</color>| Primary Key Field |
+endlegend
+
+@enduml
+
